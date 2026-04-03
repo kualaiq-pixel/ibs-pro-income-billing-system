@@ -33,26 +33,40 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Enrich with counts
-    const result = await Promise.all(
-      (data || []).map(async (customer) => {
-        const row = customer as unknown as Record<string, unknown>
-        const camel = toCamel<CustomerWithCompany>(row)
+    // Aggregate counts in 2 queries instead of N+1 per-customer queries
+    const customers = data || []
+    let incomeCounts: Record<string, number> = {}
+    let bookingCounts: Record<string, number> = {}
 
-        const [incomesRes, bookingsRes] = await Promise.all([
-          supabase.from('incomes').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
-          supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
-        ])
+    if (companyId && customers.length > 0) {
+      const [incomeRows, bookingRows] = await Promise.all([
+        supabase.from('incomes').select('customer_id').eq('company_id', companyId),
+        supabase.from('bookings').select('customer_id').eq('company_id', companyId),
+      ])
 
-        return {
-          ...camel,
-          _count: {
-            incomes: incomesRes.count ?? 0,
-            bookings: bookingsRes.count ?? 0,
-          },
-        }
-      })
-    )
+      // Group by customer_id in JS
+      incomeCounts = (incomeRows.data ?? []).reduce<Record<string, number>>((acc, r) => {
+        if (r.customer_id) acc[r.customer_id] = (acc[r.customer_id] || 0) + 1
+        return acc
+      }, {})
+
+      bookingCounts = (bookingRows.data ?? []).reduce<Record<string, number>>((acc, r) => {
+        if (r.customer_id) acc[r.customer_id] = (acc[r.customer_id] || 0) + 1
+        return acc
+      }, {})
+    }
+
+    const result = customers.map((customer) => {
+      const row = customer as unknown as Record<string, unknown>
+      const camel = toCamel<CustomerWithCompany>(row)
+      return {
+        ...camel,
+        _count: {
+          incomes: incomeCounts[customer.id] ?? 0,
+          bookings: bookingCounts[customer.id] ?? 0,
+        },
+      }
+    })
 
     return NextResponse.json(result)
   } catch (error: unknown) {

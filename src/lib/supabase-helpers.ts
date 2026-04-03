@@ -1,11 +1,21 @@
 import { supabase } from './supabase';
 
-// Convert snake_case to camelCase
+// Convert snake_case to camelCase (recursive for nested objects/arrays)
 export function toCamel<T>(row: Record<string, unknown>): T {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row)) {
     const camelKey = key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-    result[camelKey] = value;
+    if (Array.isArray(value)) {
+      result[camelKey] = value.map(item =>
+        item !== null && typeof item === 'object' && !Array.isArray(item)
+          ? toCamel(item as Record<string, unknown>)
+          : item
+      );
+    } else if (value !== null && typeof value === 'object') {
+      result[camelKey] = toCamel(value as Record<string, unknown>);
+    } else {
+      result[camelKey] = value;
+    }
   }
   return result as T;
 }

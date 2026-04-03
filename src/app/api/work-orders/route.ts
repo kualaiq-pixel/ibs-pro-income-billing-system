@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { toCamelArray, toCamel, parseJsonFields, createAuditLog } from '@/lib/supabase-helpers'
 
+const safeFloat = (v: unknown, fallback = 0) => { const n = parseFloat(String(v ?? '')); return isNaN(n) ? fallback : n; };
+
 interface WorkOrderRecord {
   id: string;
   companyId: string;
@@ -131,13 +133,13 @@ export async function POST(request: NextRequest) {
         date,
         status: status ?? 'Draft',
         technician: technician ?? '',
-        estimated_hours: estimatedHours !== undefined ? parseFloat(estimatedHours) : 0,
-        actual_hours: actualHours !== undefined ? parseFloat(actualHours) : 0,
+        estimated_hours: estimatedHours !== undefined ? safeFloat(estimatedHours) : 0,
+        actual_hours: actualHours !== undefined ? safeFloat(actualHours) : 0,
         work_description: workDescription ?? '',
         parts_used: partsUsedStr,
-        labor_cost: laborCost !== undefined ? parseFloat(laborCost) : 0,
-        parts_cost: partsCost !== undefined ? parseFloat(partsCost) : 0,
-        total_cost: totalCost !== undefined ? parseFloat(totalCost) : 0,
+        labor_cost: laborCost !== undefined ? safeFloat(laborCost) : 0,
+        parts_cost: partsCost !== undefined ? safeFloat(partsCost) : 0,
+        total_cost: totalCost !== undefined ? safeFloat(totalCost) : 0,
         recommendations: recommendations ?? '',
         customer_approval: customerApproval ?? false,
         mileage: mileage ?? 0,

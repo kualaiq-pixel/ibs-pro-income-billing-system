@@ -417,3 +417,68 @@ Stage Summary:
 - Lint passes clean (0 errors), dev server returns HTTP 200
 - Files created: `login-floating-controls.tsx`, `sidebar-bottom-controls.tsx`
 - Files rewritten: `login-page.tsx`, `app-sidebar.tsx`
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Fix hydration mismatch — properly apply next/dynamic ssr:false and deploy
+
+Work Log:
+- **Root Cause Found:** The previous session's `next/dynamic({ ssr: false })` fix was NEVER actually applied to the import statements. Both `login-page.tsx` and `app-sidebar.tsx` were using regular `import { Component }` instead of `const Component = dynamic(() => import('./...'), { ssr: false })`.
+- The `useSyncExternalStore` mounted guard inside the child components was unreliable — React may call `getSnapshot()` instead of `getServerSnapshot()` during hydration in this Next.js environment.
+- **Fix Applied:**
+  - `login-page.tsx`: Changed `import { LoginFloatingControls }` to `const LoginFloatingControls = dynamic(() => import('./login-floating-controls'), { ssr: false })`
+  - `app-sidebar.tsx`: Changed `import { SidebarBottomControls }` to `const SidebarBottomControls = dynamic(() => import('./sidebar-bottom-controls'), { ssr: false })`
+  - `login-floating-controls.tsx`: Removed `useSyncExternalStore` guard (redundant with ssr:false)
+  - `sidebar-bottom-controls.tsx`: Removed `useSyncExternalStore` guard (redundant with ssr:false)
+- Cleared `.next` cache and restarted dev server
+- Fixed `.config` directory conflict (was a file, needed to be a directory for Prisma)
+- Verified: HTTP 200, clean compile, no SSR output of theme-dependent elements
+- Committed changes locally
+- No GitHub PAT or deployment credentials available in the environment
+
+Stage Summary:
+- Hydration mismatch definitively fixed: theme/language controls now load via next/dynamic({ ssr: false })
+- Server-rendered HTML contains NO Sun/Moon SVGs or language flag emojis — zero mismatch possible
+- Dev server running with clean health check
+- Changes committed locally (commit: 0c89190)
+- GitHub push requires user's Personal Access Token — not available in current environment
+---
+Task ID: 10 - bugfix-api-routes
+Agent: Main Agent
+Task: Fix 5 critical bugs in API routes
+
+Work Log:
+- **BUG 1 — Settings route orphaned records** (`src/app/api/settings/route.ts`):
+  - GET handler used `crypto.randomUUID()` for auto-created settings but always queried with `.eq('id', 'main')`, causing orphaned records and re-creation on every GET
+  - Fix: Changed `id: crypto.randomUUID()` → `id: 'main'` to match the query key
+  - Also added `toCamel` import and conversion for GET response consistency
+
+- **BUG 2 — toCamel not recursive** (`src/lib/supabase-helpers.ts`):
+  - `toCamel()` only converted top-level keys; nested joined data (e.g., `company.vat_id`) stayed snake_case
+  - Fix: Made `toCamel` recursive — when a value is a non-null object, recursively apply toCamel; when it's an array of objects, map toCamel over each
+
+- **BUG 3 — Supabase service role key exposed** (`src/lib/supabase.ts`):
+  - `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` with `NEXT_PUBLIC_` prefix exposes the service role key to the browser
+  - Fix: Changed to `process.env.SUPABASE_SERVICE_ROLE_KEY` (no NEXT_PUBLIC_ prefix)
+  - Updated error message to reflect new env var name
+
+- **BUG 4 — parseFloat NaN safety** (`src/app/api/incomes/route.ts`, `src/app/api/work-orders/route.ts`):
+  - `parseFloat()` on unsanitized input could produce `NaN` values stored in the database
+  - Fix: Added `safeFloat` helper that falls back to a default value (0 or specified) when NaN
+  - Applied to: `amount`, `vatRate` in incomes; `estimatedHours`, `actualHours`, `laborCost`, `partsCost`, `totalCost` in work-orders
+
+- **BUG 5 — N+1 queries** (`src/app/api/customers/route.ts`, `src/app/api/companies/route.ts`):
+  - Customers GET: fired 2 separate count queries per customer (N+1)
+  - Fix: Replaced with 2 aggregate queries (incomes, bookings by company_id), then grouped by customer_id in JavaScript
+  - Companies GET: fired 6 separate count queries per company (N*6)
+  - Fix: Replaced with 6 aggregate queries (users, customers, incomes, expenses, bookings, work_orders by company_id), then grouped by company_id in JavaScript
+
+Stage Summary:
+- All 5 critical bugs fixed across 7 files
+- Settings auto-creation now uses stable 'main' id matching the query
+- toCamel is fully recursive for nested Supabase join data
+- Service role key no longer exposed to browser bundles
+- All parseFloat calls are NaN-safe with fallback values
+- List endpoints use O(1) aggregate queries instead of O(N) per-record queries
+- Lint passes clean (0 errors)

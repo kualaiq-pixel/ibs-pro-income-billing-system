@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { createAuditLog } from '@/lib/supabase-helpers'
+import { createAuditLog, toCamel } from '@/lib/supabase-helpers'
 
 export async function GET() {
   try {
@@ -11,12 +11,11 @@ export async function GET() {
       .single()
 
     if (error || !data) {
-      // Create default settings if not found
-      const id = crypto.randomUUID()
+      // Create default settings if not found — use fixed 'main' id to match query
       const { data: newSettings, error: createError } = await supabase
         .from('app_settings')
         .insert({
-          id,
+          id: 'main',
           settings: '{}',
         })
         .select()
@@ -26,7 +25,7 @@ export async function GET() {
         return NextResponse.json({ error: createError.message }, { status: 500 })
       }
 
-      return NextResponse.json({ id: newSettings.id })
+      return NextResponse.json(toCamel(newSettings as unknown as Record<string, unknown>))
     }
 
     let parsed: Record<string, unknown> = {}
@@ -36,7 +35,8 @@ export async function GET() {
       parsed = {}
     }
 
-    return NextResponse.json({ id: data.id, ...parsed })
+    const camel = toCamel(data as unknown as Record<string, unknown>)
+    return NextResponse.json({ id: camel.id, ...parsed })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })

@@ -37,31 +37,54 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Get counts for each company
-    const companies = await Promise.all(
-      (data || []).map(async (company) => {
-        const [usersRes, customersRes, incomesRes, expensesRes, bookingsRes, workOrdersRes] = await Promise.all([
-          supabase.from('users').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
-          supabase.from('customers').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
-          supabase.from('incomes').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
-          supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
-          supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
-          supabase.from('work_orders').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
-        ])
+    // Aggregate counts in 6 queries instead of N*6 per-company queries
+    const companiesData = data || []
+    const companyIds = companiesData.map(c => c.id)
 
-        const row = company as unknown as Record<string, unknown>
-        const camel = toCamel<CompanyWithCounts>(row)
-        camel._count = {
-          users: usersRes.count ?? 0,
-          customers: customersRes.count ?? 0,
-          incomes: incomesRes.count ?? 0,
-          expenses: expensesRes.count ?? 0,
-          bookings: bookingsRes.count ?? 0,
-          workOrders: workOrdersRes.count ?? 0,
-        }
-        return camel
-      })
-    )
+    let usersMap: Record<string, number> = {}
+    let customersMap: Record<string, number> = {}
+    let incomesMap: Record<string, number> = {}
+    let expensesMap: Record<string, number> = {}
+    let bookingsMap: Record<string, number> = {}
+    let workOrdersMap: Record<string, number> = {}
+
+    if (companyIds.length > 0) {
+      const [usersRes, customersRes, incomesRes, expensesRes, bookingsRes, workOrdersRes] = await Promise.all([
+        supabase.from('users').select('company_id').in('company_id', companyIds),
+        supabase.from('customers').select('company_id').in('company_id', companyIds),
+        supabase.from('incomes').select('company_id').in('company_id', companyIds),
+        supabase.from('expenses').select('company_id').in('company_id', companyIds),
+        supabase.from('bookings').select('company_id').in('company_id', companyIds),
+        supabase.from('work_orders').select('company_id').in('company_id', companyIds),
+      ])
+
+      const groupByCompany = (rows: { company_id: string }[] | null) =>
+        (rows ?? []).reduce<Record<string, number>>((acc, r) => {
+          acc[r.company_id] = (acc[r.company_id] || 0) + 1
+          return acc
+        }, {})
+
+      usersMap = groupByCompany(usersRes.data as { company_id: string }[] | null)
+      customersMap = groupByCompany(customersRes.data as { company_id: string }[] | null)
+      incomesMap = groupByCompany(incomesRes.data as { company_id: string }[] | null)
+      expensesMap = groupByCompany(expensesRes.data as { company_id: string }[] | null)
+      bookingsMap = groupByCompany(bookingsRes.data as { company_id: string }[] | null)
+      workOrdersMap = groupByCompany(workOrdersRes.data as { company_id: string }[] | null)
+    }
+
+    const companies = companiesData.map((company) => {
+      const row = company as unknown as Record<string, unknown>
+      const camel = toCamel<CompanyWithCounts>(row)
+      camel._count = {
+        users: usersMap[company.id] ?? 0,
+        customers: customersMap[company.id] ?? 0,
+        incomes: incomesMap[company.id] ?? 0,
+        expenses: expensesMap[company.id] ?? 0,
+        bookings: bookingsMap[company.id] ?? 0,
+        workOrders: workOrdersMap[company.id] ?? 0,
+      }
+      return camel
+    })
 
     return NextResponse.json(companies)
   } catch (error: unknown) {

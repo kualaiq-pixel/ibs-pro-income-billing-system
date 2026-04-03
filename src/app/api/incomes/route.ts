@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { toCamelArray, toCamel, parseJsonFields, createAuditLog } from '@/lib/supabase-helpers'
 import { generateReferenceNumber } from '@/lib/finnish-reference'
 
+const safeFloat = (v: unknown, fallback = 0) => { const n = parseFloat(String(v ?? '')); return isNaN(n) ? fallback : n; };
+
 interface IncomeRecord {
   id: string;
   companyId: string;
@@ -104,12 +106,12 @@ export async function POST(request: NextRequest) {
         customer_id: customerId ?? null,
         invoice_number: invoiceNumber,
         date,
-        amount: parseFloat(amount),
+        amount: safeFloat(amount),
         services: servicesStr,
         description: description ?? '',
         status: status ?? 'Pending',
         reference_number: referenceNumber,
-        vat_rate: vatRate !== undefined ? parseFloat(vatRate) : 25.5,
+        vat_rate: vatRate !== undefined ? safeFloat(vatRate, 25.5) : 25.5,
         payment_method: paymentMethod ?? 'Bill',
         category: category ?? 'Service',
         car_make: carMake ?? '',

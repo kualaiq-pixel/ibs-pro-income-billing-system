@@ -1,8 +1,11 @@
 /**
- * Professional A4 Invoice/Receipt PDF Generator
+ * Professional A4 Invoice/Receipt PDF Generator — Clean White Print-Ready
  *
  * Uses jsPDF + jspdf-autotable to create a clean, print-ready Finnish invoice
- * without any website UI elements. Supports:
+ * on a pure white A4 page. Designed to look like a real Finnish invoice/receipt
+ * you'd receive from an auto shop — no colored backgrounds, no dark UI elements.
+ *
+ * Supports:
  * - Conditional header: LASKU (Invoice) or KUITTI (Receipt) based on status
  * - Virtuaaliviivakoodi (Finnish virtual barcode) for Bill payments
  * - RF reference number (international format)
@@ -61,22 +64,30 @@ interface InvoiceData {
 }
 
 /* ── Colors (RGB arrays for jsPDF) ──────────────────────────────────────── */
+/* Design: Pure white page, dark text, color only for the title accent */
 
 const COLORS = {
-  primary: [30, 64, 55] as const,
-  primaryLight: [220, 237, 230] as const,
-  text: [30, 30, 30] as const,
-  textMuted: [100, 100, 100] as const,
-  border: [200, 200, 200] as const,
+  /** Dark text — used for all body copy */
+  text: [26, 26, 26] as const,                    // #1a1a1a
+  /** Muted text — labels, secondary info */
+  textMuted: [102, 102, 102] as const,             // #666666
+  /** Title accent for LASKU (invoice) — teal */
+  titleInvoice: [13, 148, 136] as const,           // #0d9488
+  /** Title accent for KUITTI (receipt) — green */
+  titleReceipt: [22, 163, 74] as const,            // #16a34a
+  /** Divider / border lines */
+  border: [204, 204, 204] as const,                // #cccccc
+  /** Table header background */
+  tableHeader: [245, 245, 245] as const,           // #f5f5f5
+  /** Alternating table row */
+  tableStripe: [250, 250, 250] as const,           // #fafafa
+  /** Payment box & customer block background */
+  sectionBg: [248, 249, 250] as const,             // #f8f9fa
+  /** Pure white */
   white: [255, 255, 255] as const,
-  accentGreen: [16, 148, 100] as const,
-  receiptGreen: [22, 101, 52] as const,
-  tableHeader: [240, 245, 242] as const,
-  tableStripe: [248, 251, 249] as const,
-  paymentBox: [240, 248, 255] as const,
 };
 
-/* ── Helper ─────────────────────────────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
 
 function currencySymbol(code?: string): string {
   if (code === 'EUR' || !code) return '\u20AC';
@@ -134,6 +145,8 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
     format: 'a4',
   });
 
+  /* Page is pure white by default in jsPDF — no background needed */
+
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 18;
@@ -147,45 +160,40 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
   const paid = isPaid(data.status);
   const dueDate = getDueDate(data.date, 14);
 
-  // ── Header: Company name + Document Title ───────────────────────────────
-  // Left: Company name
+  // Color accent based on document type
+  const titleColor = paid ? COLORS.titleReceipt : COLORS.titleInvoice;
+
+  /* ── Header: Company name (left) + Document Title (right) ─────────────── */
+
+  // Left: Company name — dark text, professional
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(18);
+  doc.setTextColor(...COLORS.text);
   doc.text(data.company.name || 'Company', margin, y + 7);
 
   // Right: Conditional title — LASKU or KUITTI
-  if (paid) {
-    doc.setFontSize(28);
-    doc.setTextColor(...COLORS.receiptGreen);
-    doc.text('KUITTI', pageW - margin, y + 7, { align: 'right' });
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...COLORS.textMuted);
-    doc.text('RECEIPT', pageW - margin, y + 13, { align: 'right' });
-  } else {
-    doc.setFontSize(28);
-    doc.setTextColor(...COLORS.primary);
-    doc.text('LASKU', pageW - margin, y + 7, { align: 'right' });
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...COLORS.textMuted);
-    doc.text('INVOICE', pageW - margin, y + 13, { align: 'right' });
-  }
+  // Only the title gets color
+  doc.setFontSize(28);
+  doc.setTextColor(...titleColor);
+  doc.text(paid ? 'KUITTI' : 'LASKU', pageW - margin, y + 7, { align: 'right' });
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text(paid ? 'RECEIPT' : 'INVOICE', pageW - margin, y + 13, { align: 'right' });
 
   y += 18;
 
-  // ── Divider line ──────────────────────────────────────────────────────
-  doc.setDrawColor(...(paid ? COLORS.receiptGreen : COLORS.primary));
-  doc.setLineWidth(0.8);
+  /* ── Divider line — medium gray ───────────────────────────────────────── */
+  doc.setDrawColor(...COLORS.border);
+  doc.setLineWidth(0.5);
   doc.line(margin, y, pageW - margin, y);
   y += 8;
 
-  // ── Company info (left) + Invoice meta (right) ──────────────────────
+  /* ── Company info (left) ──────────────────────────────────────────────── */
   const leftColX = margin;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.textMuted);
   doc.text('LASKUTTAJA / SENDER', leftColX, y);
   y += 5;
 
@@ -210,13 +218,13 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
     y += 4;
   }
 
-  // Right column: Invoice details
+  /* ── Invoice metadata (right column) ──────────────────────────────────── */
   let rightY = margin + 26;
   const rightColX = pageW - margin;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.textMuted);
   doc.text(paid ? 'KUITIN TIEDOT / RECEIPT INFO' : 'LASKUN TIEDOT / INVOICE INFO', rightColX, rightY);
   rightY += 5;
 
@@ -253,14 +261,14 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
   if (y < rightY) y = rightY + 5;
   y += 5;
 
-  // ── Customer info ────────────────────────────────────────────────────
+  /* ── Customer info block — very light gray ────────────────────────────── */
   const custBlockH = getCustomerBlockHeight(data);
-  doc.setFillColor(...COLORS.primaryLight);
+  doc.setFillColor(...COLORS.sectionBg);
   doc.roundedRect(margin, y - 3, contentW, custBlockH, 2, 2, 'F');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.setTextColor(...COLORS.primary);
+  doc.setTextColor(...COLORS.textMuted);
   doc.text('VASTAANOTTAJA / RECIPIENT', margin + 4, y + 1);
   y += 5;
 
@@ -282,7 +290,7 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
 
   y += 5;
 
-  // ── Vehicle info ─────────────────────────────────────────────────────
+  /* ── Vehicle info ─────────────────────────────────────────────────────── */
   if (data.carMake || data.licensePlate) {
     const vehicleText = [
       data.carMake,
@@ -302,10 +310,10 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
     y += 8;
   }
 
-  // ── Services table ───────────────────────────────────────────────────
+  /* ── Services table ───────────────────────────────────────────────────── */
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.setTextColor(...COLORS.primary);
+  doc.setTextColor(...COLORS.textMuted);
   doc.text('PALVELUT / SERVICES', margin, y);
   y += 2;
 
@@ -319,7 +327,7 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
     theme: 'grid',
     headStyles: {
       fillColor: COLORS.tableHeader,
-      textColor: COLORS.primary,
+      textColor: COLORS.text,
       fontStyle: 'bold',
       fontSize: 8,
       lineWidth: 0.1,
@@ -330,6 +338,10 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
     },
     alternateRowStyles: {
       fillColor: COLORS.tableStripe,
+    },
+    styles: {
+      lineColor: COLORS.border,
+      lineWidth: 0.1,
     },
     columnStyles: {
       0: { cellWidth: 'auto' },
@@ -348,7 +360,7 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
   y = ((doc as Record<string, unknown>).lastAutoTable as Record<string, number> | undefined)?.finalY ?? y + 30;
   y += 8;
 
-  // ── Totals block ────────────────────────────────────────────────────
+  /* ── Totals block ─────────────────────────────────────────────────────── */
   const netAmount = data.amount / (1 + data.vatRate / 100);
   const vatAmount = data.amount - netAmount;
 
@@ -365,31 +377,34 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
   doc.text(fmtMoney(vatAmount, data.company.currency), pageW - margin, y, { align: 'right' });
   y += 2;
 
-  doc.setDrawColor(...COLORS.primary);
-  doc.setLineWidth(0.5);
+  // Total divider — medium gray
+  doc.setDrawColor(...COLORS.border);
+  doc.setLineWidth(0.4);
   doc.line(totalsX, y, pageW - margin, y);
   y += 5;
 
+  // Total — dark bold text
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.setTextColor(...COLORS.primary);
+  doc.setTextColor(...COLORS.text);
   doc.text('YHTEENS\u00C4 / TOTAL:', totalsX, y);
   doc.text(fmtMoney(data.amount, data.company.currency), pageW - margin, y, { align: 'right' });
   y += 10;
 
-  // ── Payment details box (only for Bill payments) ─────────────────────
+  /* ── Payment details box (only for Bill payments) ─────────────────────── */
   if (data.paymentMethod === 'Bill') {
     const hasBarcode = !!data.company.accountNumber && formattedRef;
     const boxH = hasBarcode ? 68 : 52;
 
-    doc.setFillColor(...COLORS.paymentBox);
-    doc.setDrawColor(...COLORS.accentGreen);
-    doc.setLineWidth(0.3);
+    // Box: very light gray fill, thin gray border
+    doc.setFillColor(...COLORS.sectionBg);
+    doc.setDrawColor(...COLORS.border);
+    doc.setLineWidth(0.25);
     doc.roundedRect(margin, y, contentW, boxH, 3, 3, 'FD');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.setTextColor(...COLORS.primary);
+    doc.setTextColor(...COLORS.text);
     doc.text('MAKSUMIETTELO / PAYMENT DETAILS', margin + 5, y + 7);
 
     doc.setFont('helvetica', 'normal');
@@ -436,14 +451,13 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
     doc.text('Er\u00E4p\u00E4iv\u00E4 / Due Date', midX, payY);
     payY += 4;
     doc.setFontSize(9);
-    doc.setTextColor(...COLORS.accentGreen);
+    doc.setTextColor(...COLORS.text);
     doc.setFont('helvetica', 'bold');
     doc.text(fmtMoney(data.amount, data.company.currency), leftX, payY);
-    doc.setTextColor(...COLORS.text);
     doc.setFont('helvetica', 'normal');
     doc.text(formatDate(dueDate, '14 p\u00E4iv\u00E4\u00E4 / 14 days'), midX, payY);
 
-    // ── Virtuaaliviivakoodi (Virtual Barcode) ─────────────────────────
+    /* ── Virtuaaliviivakoodi (Virtual Barcode) ─────────────────────────── */
     if (hasBarcode) {
       payY += 6;
       doc.setDrawColor(...COLORS.border);
@@ -469,7 +483,6 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(...COLORS.text);
-        // Split barcode into lines if too long
         const barcodeChunks = doc.splitTextToSize(barcode, contentW - 15);
         for (const chunk of barcodeChunks) {
           doc.text(chunk, leftX, payY);
@@ -481,22 +494,22 @@ export function generateInvoicePDF(data: InvoiceData): jsPDF {
     y += boxH + 8;
   }
 
-  // ── Notes ────────────────────────────────────────────────────────────
+  /* ── Notes ────────────────────────────────────────────────────────────── */
   if (data.description) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(...COLORS.primary);
+    doc.setTextColor(...COLORS.textMuted);
     doc.text('HUOMAUTUKSET / NOTES', margin, y);
     y += 5;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(...COLORS.textMuted);
+    doc.setTextColor(...COLORS.text);
     const lines = doc.splitTextToSize(data.description, contentW);
     doc.text(lines, margin, y);
     y += lines.length * 4 + 5;
   }
 
-  // ── Footer ───────────────────────────────────────────────────────────
+  /* ── Footer ───────────────────────────────────────────────────────────── */
   const footerY = pageH - 15;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);

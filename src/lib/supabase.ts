@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 let _supabase: SupabaseClient | null = null;
 
@@ -10,7 +10,7 @@ function getSupabase(): SupabaseClient {
   if (!supabaseUrl || !supabaseKey) {
     throw new Error(
       '[IBS Pro] Supabase environment variables are missing. ' +
-      'Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY in .env.local'
+      'Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local'
     );
   }
   _supabase = createClient(supabaseUrl, supabaseKey);
