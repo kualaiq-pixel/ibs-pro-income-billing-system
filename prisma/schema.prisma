@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  vat           String   @default("")
+  vatId         String   @default("")
+  accountNumber String   @default("")
+  address       String   @default("")
+  zipCode       String   @default("")
+  city          String   @default("")
+  country       String   @default("")
+  currency      String   @default("€")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users                    User[]
+  customers                Customer[]
+  incomes                  Income[]
+  expenses                 Expense[]
+  bookings                 Booking[]
+  workOrders               WorkOrder[]
+  maintenanceCertificates  MaintenanceCertificate[]
+  shkLinks                 ShkLink[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  role      String   @default("Staff")
+  companyId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company?  @relation(fields: [companyId], references: [id])
+  auditLogs AuditLog[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  address   String   @default("")
+  email     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  incomes  Income[]
+  bookings Booking[]
+}
+
+model Income {
+  id              String   @id @default(cuid())
+  companyId       String
+  customerId      String?
+  invoiceNumber   Int
+  date            String
+  amount          Float
+  services        String   @default("[]") // JSON array of {description, price}
+  description     String   @default("")
+  status          String   @default("Pending")
+  referenceNumber String   @default("")
+  vatRate         Float    @default(25.5)
+  paymentMethod   String   @default("Bill")
+  category        String   @default("Service")
+  carMake         String   @default("")
+  carModel        String   @default("")
+  licensePlate    String   @default("")
+  customerDetails String   @default("") // JSON for individual customers
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company  Company? @relation(fields: [companyId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  companyId     String
+  date          String
+  amount        Float
+  category      String   @default("")
+  description   String   @default("")
+  vatRate       Float    @default(0)
+  paymentMethod String   @default("Bill")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+}
+
+model Booking {
+  id              String   @id @default(cuid())
+  companyId       String
+  customerId      String?
+  carMake         String   @default("")
+  carModel        String   @default("")
+  licensePlate    String   @default("")
+  serviceType     String   @default("")
+  bookingDate     String
+  bookingTime     String   @default("09:00")
+  notes           String   @default("")
+  status          String   @default("Scheduled")
+  customerDetails String   @default("") // JSON for individual customers
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company     Company?    @relation(fields: [companyId], references: [id])
+  customer    Customer?   @relation(fields: [customerId], references: [id])
+  workOrders  WorkOrder[]
+}
+
+model WorkOrder {
+  id                     String   @id @default(cuid())
+  companyId              String
+  bookingId              String?
+  workOrderNumber        Int
+  date                   String
+  status                 String   @default("Draft")
+  technician             String   @default("")
+  estimatedHours         Float    @default(0)
+  actualHours            Float    @default(0)
+  workDescription        String   @default("")
+  partsUsed              String   @default("[]") // JSON array
+  laborCost              Float    @default(0)
+  partsCost              Float    @default(0)
+  totalCost              Float    @default(0)
+  recommendations        String   @default("")
+  customerApproval       Boolean  @default(false)
+  mileage                Int      @default(0)
+  nextServiceDue         String   @default("")
+  serviceGuarantee       String   @default("")
+  warrantyDetails        String   @default("")
+  serviceQualityCheck    String   @default("") // JSON array
+  technicianNotes        String   @default("")
+  carMake                String   @default("")
+  carModel               String   @default("")
+  licensePlate           String   @default("")
+  customerId             String?
+  customerDetails        String   @default("") // JSON for individual customers
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  company        Company?                  @relation(fields: [companyId], references: [id])
+  booking        Booking?                  @relation(fields: [bookingId], references: [id])
+  maintenanceCerts MaintenanceCertificate[]
+}
+
+model MaintenanceCertificate {
+  id                     String   @id @default(cuid())
+  companyId              String
+  workOrderId            String?
+  certificateNumber      String   @unique
+  issueDate              String
+  validUntil             String
+  maintenanceType        String   @default("Regular Maintenance")
+  nextMaintenanceDate    String   @default("")
+  maintenanceInterval    String   @default("")
+  certifiedTechnician    String   @default("")
+  inspectionResults      String   @default("{}") // JSON object
+  technicianNotes        String   @default("")
+  recommendations        String   @default("")
+  serviceHistory         String   @default("[]") // JSON array
+  additionalRemarks      String   @default("")
+  carMake                String   @default("")
+  carModel               String   @default("")
+  licensePlate           String   @default("")
+  customerId             String?
+  customerDetails        String   @default("") // JSON for individual customers
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  company   Company?   @relation(fields: [companyId], references: [id])
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+}
+
+model ShkLink {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  url       String
+  username  String   @default("")
+  password  String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  timestamp   DateTime @default(now())
+  user        String   @default("System")
+  description String
+  userId      String?
+
+  userAccount User? @relation(fields: [userId], references: [id])
+}
+
+model AppSettings {
+  id         String @id @default("main")
+  settings   String @default("{}") // JSON for all settings
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
