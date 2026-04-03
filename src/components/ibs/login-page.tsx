@@ -9,9 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePwaInstall } from '@/hooks/use-pwa-install';
-import { LoginFloatingControls } from './login-floating-controls';
+import dynamic from 'next/dynamic';
+
+const LoginFloatingControls = dynamic(
+  () => import('./login-floating-controls'),
+  { ssr: false }
+);
+
 import {
   DollarSign,
   Loader2,

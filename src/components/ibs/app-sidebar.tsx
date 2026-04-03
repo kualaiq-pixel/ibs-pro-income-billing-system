@@ -32,7 +32,12 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { SidebarBottomControls } from './sidebar-bottom-controls';
+import dynamic from 'next/dynamic';
+
+const SidebarBottomControls = dynamic(
+  () => import('./sidebar-bottom-controls'),
+  { ssr: false }
+);
 
 /* ── Menu Item Types ─────────────────────────────────────────────────────── */
 

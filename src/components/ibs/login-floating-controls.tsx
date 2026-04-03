@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { useAppStore, type Language } from '@/store/app-store';
 import { useTranslation } from '@/hooks/use-translation';
@@ -13,22 +13,12 @@ const LANGUAGES: { code: Language; flag: string; label: string }[] = [
   { code: 'AR', flag: '🇸🇦', label: 'العربية' },
 ];
 
-// Stable references — useSyncExternalStore requires these to be stable
-// across renders to avoid infinite re-subscriptions.
-const _emptySubscribe = () => () => {};
-const _true = () => true;
-const _false = () => false;
-
 /**
  * Floating controls for the login page (language + theme toggle).
- * Uses useSyncExternalStore to detect client mount:
- * - Server SSR: getServerSnapshot → false → render null
- * - Hydration: getServerSnapshot → false → render null (matches server)
- * - Post-hydration: getSnapshot → true → re-render with controls
+ * Loaded via next/dynamic({ ssr: false }) — never renders on the server,
+ * so there is zero risk of hydration mismatch.
  */
 export function LoginFloatingControls() {
-  const mounted = useSyncExternalStore(_emptySubscribe, _true, _false);
-
   const t = useTranslation();
   const { theme, setTheme } = useTheme();
   const { language, setLanguage } = useAppStore();
@@ -40,8 +30,6 @@ export function LoginFloatingControls() {
     const next = LANGUAGES[(idx + 1) % LANGUAGES.length];
     setLanguage(next.code);
   }, [language, setLanguage]);
-
-  if (!mounted) return null;
 
   return (
     <>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { useAppStore, type Language } from '@/store/app-store';
 import { useTranslation } from '@/hooks/use-translation';
@@ -14,22 +14,16 @@ const LANGUAGES: { code: Language; flag: string }[] = [
   { code: 'AR', flag: '🇸🇦' },
 ];
 
-// Stable references for useSyncExternalStore
-const _emptySubscribe = () => () => {};
-const _true = () => true;
-const _false = () => false;
-
 interface SidebarBottomControlsProps {
   onLogout: () => void;
 }
 
 /**
  * Bottom controls for the sidebar (cloud sync, language, theme toggle, logout).
- * Uses useSyncExternalStore to detect client mount.
+ * Loaded via next/dynamic({ ssr: false }) — never renders on the server,
+ * so there is zero risk of hydration mismatch.
  */
 export function SidebarBottomControls({ onLogout }: SidebarBottomControlsProps) {
-  const mounted = useSyncExternalStore(_emptySubscribe, _true, _false);
-
   const t = useTranslation();
   const { theme, setTheme } = useTheme();
   const { language, setLanguage } = useAppStore();
@@ -47,8 +41,6 @@ export function SidebarBottomControls({ onLogout }: SidebarBottomControlsProps) 
       localStorage.setItem('theme', next);
     } catch { /* silent */ }
   }, [theme, setTheme]);
-
-  if (!mounted) return null;
 
   return (
     <div className="p-3 space-y-1 shrink-0">
