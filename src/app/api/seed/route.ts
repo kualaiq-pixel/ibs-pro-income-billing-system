@@ -53,6 +53,8 @@ export async function POST() {
       city: 'Helsinki',
       country: 'Finland',
       currency: '€',
+      phone: '+358 9 123 4567',
+      email: 'info@defaultcorp.fi',
     })
     if (c1Error) return NextResponse.json({ error: c1Error.message }, { status: 500 })
 
@@ -68,6 +70,8 @@ export async function POST() {
       city: 'Espoo',
       country: 'Finland',
       currency: '€',
+      phone: '+358 9 987 6543',
+      email: 'contact@innovatesolutions.fi',
     })
     if (c2Error) return NextResponse.json({ error: c2Error.message }, { status: 500 })
 
